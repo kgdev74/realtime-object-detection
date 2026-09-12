@@ -1,613 +1,644 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Live Object Detection | Vercel Edition</title>
     <!-- TensorFlow.js and COCO-SSD for client-side hardware-accelerated detection -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 
     <style>
-        :root {
-            --bg-color: #0b0f19;
-            --card-bg: #131b2e;
-            --border-color: #232f48;
-            --accent-blue: #38bdf8;
-            --accent-green: #22c55e;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
+      :root {
+        --bg-color: #0b0f19;
+        --card-bg: #131b2e;
+        --border-color: #232f48;
+        --accent-blue: #38bdf8;
+        --accent-green: #22c55e;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+      }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 24px 16px;
-        }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 16px;
+      }
 
-        .container {
-            width: 100%;
-            max-width: 980px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+      .container {
+        width: 100%;
+        max-width: 980px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
 
-        /* Header */
-        header {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
+      /* Header */
+      header {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
 
-        .badges {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+      .badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
 
-        .badge {
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            background: rgba(56, 189, 248, 0.1);
-            color: var(--accent-blue);
-            border: 1px solid rgba(56, 189, 248, 0.25);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+      .badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        background: rgba(56, 189, 248, 0.1);
+        color: var(--accent-blue);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
 
-        .badge-live {
-            background: rgba(34, 197, 94, 0.12);
-            color: var(--accent-green);
-            border-color: rgba(34, 197, 94, 0.3);
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
+      .badge-live {
+        background: rgba(34, 197, 94, 0.12);
+        color: var(--accent-green);
+        border-color: rgba(34, 197, 94, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
 
-        .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--accent-green);
-            border-radius: 50%;
-            animation: pulse 1.8s infinite;
-        }
+      .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-green);
+        border-radius: 50%;
+        animation: pulse 1.8s infinite;
+      }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-            70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
         }
+        70% {
+          box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+        }
+      }
 
-        h1 {
-            font-size: 2.1rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+      h1 {
+        font-size: 2.1rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
 
-        p.subtitle {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            max-width: 620px;
-            line-height: 1.5;
-        }
+      p.subtitle {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        max-width: 620px;
+        line-height: 1.5;
+      }
 
-        /* Main Card */
-        .dashboard-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 18px;
-            overflow: hidden;
-            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-        }
+      /* Main Card */
+      .dashboard-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+      }
 
-        /* Card Toolbar */
-        .card-toolbar {
-            padding: 14px 20px;
-            background: rgba(19, 27, 46, 0.9);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
+      /* Card Toolbar */
+      .card-toolbar {
+        padding: 14px 20px;
+        background: rgba(19, 27, 46, 0.9);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
 
-        .controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
 
-        button.btn {
-            background: #2563eb;
-            color: #ffffff;
-            border: none;
-            padding: 8px 16px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s ease;
-        }
+      button.btn {
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
 
-        button.btn:hover {
-            background: #1d4ed8;
-            transform: translateY(-1px);
-        }
+      button.btn:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+      }
 
-        button.btn-secondary {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-        }
+      button.btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+      }
 
-        button.btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
+      button.btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
 
-        .fps-counter {
-            font-size: 0.85rem;
-            color: var(--accent-blue);
-            font-family: monospace;
-            font-weight: 600;
-            background: rgba(56, 189, 248, 0.1);
-            padding: 4px 10px;
-            border-radius: 6px;
-            border: 1px solid rgba(56, 189, 248, 0.2);
-        }
+      .fps-counter {
+        font-size: 0.85rem;
+        color: var(--accent-blue);
+        font-family: monospace;
+        font-weight: 600;
+        background: rgba(56, 189, 248, 0.1);
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+      }
 
-        /* Viewport Canvas */
-        .viewport {
-            position: relative;
-            width: 100%;
-            background: #000000;
-            min-height: 480px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
+      /* Viewport Canvas */
+      .viewport {
+        position: relative;
+        width: 100%;
+        background: #000000;
+        min-height: 480px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
 
-        /* Hidden video element used as frame source for canvas */
-        video#webcam {
-            display: none;
-        }
+      /* Hidden video element used as frame source for canvas */
+      video#webcam {
+        display: none;
+      }
 
-        canvas#canvas {
-            width: 100%;
-            height: auto;
-            max-height: 640px;
-            object-fit: contain;
-            display: block;
-        }
+      canvas#canvas {
+        width: 100%;
+        height: auto;
+        max-height: 640px;
+        object-fit: contain;
+        display: block;
+      }
 
-        /* Loading / Standby Overlay */
-        .overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            background: rgba(11, 15, 25, 0.88);
-            backdrop-filter: blur(4px);
-            z-index: 10;
-        }
+      /* Loading / Standby Overlay */
+      .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: rgba(11, 15, 25, 0.88);
+        backdrop-filter: blur(4px);
+        z-index: 10;
+      }
 
-        .spinner {
-            width: 44px;
-            height: 44px;
-            border: 4px solid rgba(56, 189, 248, 0.2);
-            border-top-color: var(--accent-blue);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
+      .spinner {
+        width: 44px;
+        height: 44px;
+        border: 4px solid rgba(56, 189, 248, 0.2);
+        border-top-color: var(--accent-blue);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
+      }
 
-        .overlay p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
+      .overlay p {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+      }
 
-        /* Stats & Tags Panel */
-        .card-footer {
-            padding: 20px;
-            background: rgba(11, 15, 25, 0.6);
-            border-top: 1px solid var(--border-color);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 16px;
-        }
+      /* Stats & Tags Panel */
+      .card-footer {
+        padding: 20px;
+        background: rgba(11, 15, 25, 0.6);
+        border-top: 1px solid var(--border-color);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+      }
 
-        .info-panel {
-            background: rgba(19, 27, 46, 0.6);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 14px;
-        }
+      .info-panel {
+        background: rgba(19, 27, 46, 0.6);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 14px;
+      }
 
-        .info-panel h3 {
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+      .info-panel h3 {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
 
-        .detected-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            min-height: 36px;
-            align-items: center;
-        }
+      .detected-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 36px;
+        align-items: center;
+      }
 
-        .tag-pill {
-            background: rgba(34, 197, 94, 0.15);
-            color: #4ade80;
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            padding: 3px 10px;
-            border-radius: 9999px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
+      .tag-pill {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
 
-        .empty-tag-msg {
-            color: #64748b;
-            font-size: 0.85rem;
-            font-style: italic;
-        }
+      .empty-tag-msg {
+        color: #64748b;
+        font-size: 0.85rem;
+        font-style: italic;
+      }
 
-        .stat-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
 
-        .stat-box {
-            background: rgba(30, 41, 59, 0.5);
-            border-radius: 8px;
-            padding: 8px 10px;
-        }
+      .stat-box {
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
 
-        .stat-box .label {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-        }
+      .stat-box .label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+      }
 
-        .stat-box .val {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--accent-blue);
-            margin-top: 2px;
-        }
+      .stat-box .val {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--accent-blue);
+        margin-top: 2px;
+      }
 
-        footer {
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
+      footer {
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <div class="container">
-        <!-- Header -->
-        <header>
-            <div class="badges">
-                <span class="badge">Vercel Ready</span>
-                <span class="badge badge-live">
-                    <span class="pulse-dot"></span>
-                    Real-Time Detection
-                </span>
-                <span class="badge">Hardware Accelerated WebGL</span>
+      <!-- Header -->
+      <header>
+        <div class="badges">
+          <span class="badge">Vercel Ready</span>
+          <span class="badge badge-live">
+            <span class="pulse-dot"></span>
+            Real-Time Detection
+          </span>
+          <span class="badge">Hardware Accelerated WebGL</span>
+        </div>
+        <h1>Real-Time Object Detection</h1>
+        <p class="subtitle">
+          High-speed client-side computer vision deployed on Vercel. Detects 80
+          everyday objects at 30-60 FPS directly in your browser.
+        </p>
+      </header>
+
+      <!-- Main Dashboard Card -->
+      <main class="dashboard-card">
+        <!-- Toolbar -->
+        <div class="card-toolbar">
+          <div class="controls">
+            <button id="toggleBtn" class="btn">
+              <span>⏹️</span> <span id="toggleText">Stop Camera</span>
+            </button>
+            <button id="flipBtn" class="btn btn-secondary">
+              <span>🔄</span> Switch Camera
+            </button>
+          </div>
+          <div class="fps-counter" id="fpsDisplay">FPS: 0</div>
+        </div>
+
+        <!-- Viewport -->
+        <div class="viewport">
+          <!-- Video stream feed (hidden, processed onto canvas) -->
+          <video id="webcam" autoplay playsinline muted></video>
+          <!-- Render canvas -->
+          <canvas id="canvas"></canvas>
+
+          <!-- Loading / Standby Overlay -->
+          <div id="overlay" class="overlay">
+            <div class="spinner"></div>
+            <p id="overlayText">Loading neural network model (COCO-SSD)...</p>
+          </div>
+        </div>
+
+        <!-- Footer Details & Detections -->
+        <div class="card-footer">
+          <!-- Live Detected Objects -->
+          <div class="info-panel">
+            <h3>🔍 Detected Objects</h3>
+            <div id="detectedTags" class="detected-tags">
+              <span class="empty-tag-msg"
+                >Point camera at objects to detect...</span
+              >
             </div>
-            <h1>Real-Time Object Detection</h1>
-            <p class="subtitle">
-                High-speed client-side computer vision deployed on Vercel. Detects 80 everyday objects at 30-60 FPS directly in your browser.
-            </p>
-        </header>
+          </div>
 
-        <!-- Main Dashboard Card -->
-        <main class="dashboard-card">
-            <!-- Toolbar -->
-            <div class="card-toolbar">
-                <div class="controls">
-                    <button id="toggleBtn" class="btn">
-                        <span>⏹️</span> <span id="toggleText">Stop Camera</span>
-                    </button>
-                    <button id="flipBtn" class="btn btn-secondary">
-                        <span>🔄</span> Switch Camera
-                    </button>
-                </div>
-                <div class="fps-counter" id="fpsDisplay">
-                    FPS: 0
-                </div>
+          <!-- System Info -->
+          <div class="info-panel">
+            <h3>⚙️ System Specs</h3>
+            <div class="stat-grid">
+              <div class="stat-box">
+                <div class="label">Inference Engine</div>
+                <div class="val">TensorFlow.js WebGL</div>
+              </div>
+              <div class="stat-box">
+                <div class="label">Hosting Platform</div>
+                <div class="val">Vercel Serverless</div>
+              </div>
+              <div class="stat-box">
+                <div class="label">Categories</div>
+                <div class="val">80 COCO Classes</div>
+              </div>
+              <div class="stat-box">
+                <div class="label">Latency</div>
+                <div class="val">< 15 ms (Client)</div>
+              </div>
             </div>
+          </div>
+        </div>
+      </main>
 
-            <!-- Viewport -->
-            <div class="viewport">
-                <!-- Video stream feed (hidden, processed onto canvas) -->
-                <video id="webcam" autoplay playsinline muted></video>
-                <!-- Render canvas -->
-                <canvas id="canvas"></canvas>
-
-                <!-- Loading / Standby Overlay -->
-                <div id="overlay" class="overlay">
-                    <div class="spinner"></div>
-                    <p id="overlayText">Loading neural network model (COCO-SSD)...</p>
-                </div>
-            </div>
-
-            <!-- Footer Details & Detections -->
-            <div class="card-footer">
-                <!-- Live Detected Objects -->
-                <div class="info-panel">
-                    <h3>🔍 Detected Objects</h3>
-                    <div id="detectedTags" class="detected-tags">
-                        <span class="empty-tag-msg">Point camera at objects to detect...</span>
-                    </div>
-                </div>
-
-                <!-- System Info -->
-                <div class="info-panel">
-                    <h3>⚙️ System Specs</h3>
-                    <div class="stat-grid">
-                        <div class="stat-box">
-                            <div class="label">Inference Engine</div>
-                            <div class="val">TensorFlow.js WebGL</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="label">Hosting Platform</div>
-                            <div class="val">Vercel Serverless</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="label">Categories</div>
-                            <div class="val">80 COCO Classes</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="label">Latency</div>
-                            <div class="val">< 15 ms (Client)</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <footer>
-            Deployed with Python & Flask on Vercel • Client-Side Computer Vision
-        </footer>
+      <footer>
+        Deployed with Python & Flask on Vercel • Client-Side Computer Vision
+      </footer>
     </div>
 
     <script>
-        // DOM Elements
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const overlay = document.getElementById('overlay');
-        const overlayText = document.getElementById('overlayText');
-        const toggleBtn = document.getElementById('toggleBtn');
-        const toggleText = document.getElementById('toggleText');
-        const flipBtn = document.getElementById('flipBtn');
-        const fpsDisplay = document.getElementById('fpsDisplay');
-        const detectedTags = document.getElementById('detectedTags');
+      // DOM Elements
+      const video = document.getElementById("webcam");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const overlay = document.getElementById("overlay");
+      const overlayText = document.getElementById("overlayText");
+      const toggleBtn = document.getElementById("toggleBtn");
+      const toggleText = document.getElementById("toggleText");
+      const flipBtn = document.getElementById("flipBtn");
+      const fpsDisplay = document.getElementById("fpsDisplay");
+      const detectedTags = document.getElementById("detectedTags");
 
-        // State variables
-        let model = null;
-        let isRunning = false;
-        let facingMode = 'user'; // 'user' (front) or 'environment' (back)
-        let currentStream = null;
-        let lastFrameTime = performance.now();
-        let frameCount = 0;
-        let fps = 0;
+      // State variables
+      let model = null;
+      let isRunning = false;
+      let facingMode = "user"; // 'user' (front) or 'environment' (back)
+      let currentStream = null;
+      let lastFrameTime = performance.now();
+      let frameCount = 0;
+      let fps = 0;
 
-        // Color palette for different object classes
-        const COLORS = [
-            '#22c55e', '#38bdf8', '#f59e0b', '#ec4899', 
-            '#a855f7', '#06b6d4', '#f97316', '#e11d48'
-        ];
+      // Color palette for different object classes
+      const COLORS = [
+        "#22c55e",
+        "#38bdf8",
+        "#f59e0b",
+        "#ec4899",
+        "#a855f7",
+        "#06b6d4",
+        "#f97316",
+        "#e11d48",
+      ];
 
-        function getClassColor(className) {
-            let hash = 0;
-            for (let i = 0; i < className.length; i++) {
-                hash = className.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            return COLORS[Math.abs(hash) % COLORS.length];
+      function getClassColor(className) {
+        let hash = 0;
+        for (let i = 0; i < className.length; i++) {
+          hash = className.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return COLORS[Math.abs(hash) % COLORS.length];
+      }
+
+      // Initialize Object Detection Model
+      async function initModel() {
+        try {
+          overlayText.textContent = "Loading AI model (COCO-SSD)...";
+          model = await cocoSsd.load({ base: "mobilenet_v2" });
+          overlayText.textContent = "Requesting camera access...";
+          await startCamera();
+        } catch (err) {
+          console.error("Model loading error:", err);
+          overlayText.textContent =
+            "Error loading model. Check internet connection.";
+        }
+      }
+
+      // Access User Webcam
+      async function startCamera() {
+        if (currentStream) {
+          currentStream.getTracks().forEach((track) => track.stop());
         }
 
-        // Initialize Object Detection Model
-        async function initModel() {
-            try {
-                overlayText.textContent = "Loading AI model (COCO-SSD)...";
-                model = await cocoSsd.load({ base: 'mobilenet_v2' });
-                overlayText.textContent = "Requesting camera access...";
-                await startCamera();
-            } catch (err) {
-                console.error("Model loading error:", err);
-                overlayText.textContent = "Error loading model. Check internet connection.";
-            }
-        }
+        try {
+          const constraints = {
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: facingMode,
+            },
+            audio: false,
+          };
 
-        // Access User Webcam
-        async function startCamera() {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-            }
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          currentStream = stream;
+          video.srcObject = stream;
 
-            try {
-                const constraints = {
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: facingMode
-                    },
-                    audio: false
-                };
-
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                currentStream = stream;
-                video.srcObject = stream;
-
-                video.onloadedmetadata = () => {
-                    video.play();
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    overlay.style.display = 'none';
-                    isRunning = true;
-                    toggleText.textContent = "Stop Camera";
-                    requestAnimationFrame(detectLoop);
-                };
-            } catch (err) {
-                console.error("Camera access error:", err);
-                overlay.style.display = 'flex';
-                overlayText.textContent = "Camera permission denied or camera not found. Please allow access.";
-            }
-        }
-
-        function stopCamera() {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-                currentStream = null;
-            }
-            isRunning = false;
-            toggleText.textContent = "Start Camera";
-            overlay.style.display = 'flex';
-            overlayText.textContent = "Camera paused. Click 'Start Camera' to resume.";
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            fpsDisplay.textContent = "FPS: 0";
-            detectedTags.innerHTML = '<span class="empty-tag-msg">Camera is stopped.</span>';
-        }
-
-        // Real-Time Frame Detection Loop
-        async function detectLoop() {
-            if (!isRunning || !model) return;
-
-            // Compute FPS
-            const now = performance.now();
-            frameCount++;
-            if (now - lastFrameTime >= 1000) {
-                fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
-                fpsDisplay.textContent = `FPS: ${fps}`;
-                frameCount = 0;
-                lastFrameTime = now;
-            }
-
-            // Draw current camera frame to canvas
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Execute inference
-            try {
-                const predictions = await model.detect(video);
-                renderPredictions(predictions);
-            } catch (e) {
-                console.error("Detection error:", e);
-            }
-
-            // Continue to next frame
+          video.onloadedmetadata = () => {
+            video.play();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            overlay.style.display = "none";
+            isRunning = true;
+            toggleText.textContent = "Stop Camera";
             requestAnimationFrame(detectLoop);
+          };
+        } catch (err) {
+          console.error("Camera access error:", err);
+          overlay.style.display = "flex";
+          overlayText.textContent =
+            "Camera permission denied or camera not found. Please allow access.";
+        }
+      }
+
+      function stopCamera() {
+        if (currentStream) {
+          currentStream.getTracks().forEach((track) => track.stop());
+          currentStream = null;
+        }
+        isRunning = false;
+        toggleText.textContent = "Start Camera";
+        overlay.style.display = "flex";
+        overlayText.textContent =
+          "Camera paused. Click 'Start Camera' to resume.";
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        fpsDisplay.textContent = "FPS: 0";
+        detectedTags.innerHTML =
+          '<span class="empty-tag-msg">Camera is stopped.</span>';
+      }
+
+      // Real-Time Frame Detection Loop
+      async function detectLoop() {
+        if (!isRunning || !model) return;
+
+        // Compute FPS
+        const now = performance.now();
+        frameCount++;
+        if (now - lastFrameTime >= 1000) {
+          fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+          fpsDisplay.textContent = `FPS: ${fps}`;
+          frameCount = 0;
+          lastFrameTime = now;
         }
 
-        // Render Bounding Boxes & Tags
-        function renderPredictions(predictions) {
-            const detectedItems = new Map();
+        // Draw current camera frame to canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            predictions.forEach(prediction => {
-                const [x, y, width, height] = prediction.bbox;
-                const score = Math.round(prediction.score * 100);
-                const className = prediction.class;
-                const color = getClassColor(className);
-
-                // Track detected classes for tags display
-                detectedItems.set(className, Math.max(detectedItems.get(className) || 0, score));
-
-                // Bounding Box
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 3;
-                ctx.shadowColor = color;
-                ctx.shadowBlur = 8;
-                ctx.strokeRect(x, y, width, height);
-                ctx.shadowBlur = 0; // Reset shadow
-
-                // Label Tag Background
-                const label = `${className} ${score}%`;
-                ctx.font = "bold 15px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto";
-                const textWidth = ctx.measureText(label).width;
-                const tagHeight = 24;
-
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.roundRect(x, Math.max(0, y - tagHeight - 2), textWidth + 14, tagHeight, [4, 4, 0, 0]);
-                ctx.fill();
-
-                // Label Text
-                ctx.fillStyle = "#ffffff";
-                ctx.fillText(label, x + 7, Math.max(16, y - 6));
-            });
-
-            // Update live detected items panel
-            if (detectedItems.size === 0) {
-                detectedTags.innerHTML = '<span class="empty-tag-msg">Point camera at objects to detect...</span>';
-            } else {
-                let tagsHtml = '';
-                detectedItems.forEach((conf, name) => {
-                    tagsHtml += `<span class="tag-pill">${name} (${conf}%)</span>`;
-                });
-                detectedTags.innerHTML = tagsHtml;
-            }
+        // Execute inference
+        try {
+          const predictions = await model.detect(video);
+          renderPredictions(predictions);
+        } catch (e) {
+          console.error("Detection error:", e);
         }
 
-        // Event Listeners
-        toggleBtn.addEventListener('click', () => {
-            if (isRunning) {
-                stopCamera();
-            } else {
-                startCamera();
-            }
+        // Continue to next frame
+        requestAnimationFrame(detectLoop);
+      }
+
+      // Render Bounding Boxes & Tags
+      function renderPredictions(predictions) {
+        const detectedItems = new Map();
+
+        predictions.forEach((prediction) => {
+          const [x, y, width, height] = prediction.bbox;
+          const score = Math.round(prediction.score * 100);
+          const className = prediction.class;
+          const color = getClassColor(className);
+
+          // Track detected classes for tags display
+          detectedItems.set(
+            className,
+            Math.max(detectedItems.get(className) || 0, score),
+          );
+
+          // Bounding Box
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 8;
+          ctx.strokeRect(x, y, width, height);
+          ctx.shadowBlur = 0; // Reset shadow
+
+          // Label Tag Background
+          const label = `${className} ${score}%`;
+          ctx.font =
+            "bold 15px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto";
+          const textWidth = ctx.measureText(label).width;
+          const tagHeight = 24;
+
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.roundRect(
+            x,
+            Math.max(0, y - tagHeight - 2),
+            textWidth + 14,
+            tagHeight,
+            [4, 4, 0, 0],
+          );
+          ctx.fill();
+
+          // Label Text
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(label, x + 7, Math.max(16, y - 6));
         });
 
-        flipBtn.addEventListener('click', () => {
-            facingMode = (facingMode === 'user') ? 'environment' : 'user';
-            startCamera();
-        });
+        // Update live detected items panel
+        if (detectedItems.size === 0) {
+          detectedTags.innerHTML =
+            '<span class="empty-tag-msg">Point camera at objects to detect...</span>';
+        } else {
+          let tagsHtml = "";
+          detectedItems.forEach((conf, name) => {
+            tagsHtml += `<span class="tag-pill">${name} (${conf}%)</span>`;
+          });
+          detectedTags.innerHTML = tagsHtml;
+        }
+      }
 
-        // Initialize when page is loaded
-        window.addEventListener('DOMContentLoaded', initModel);
+      // Event Listeners
+      toggleBtn.addEventListener("click", () => {
+        if (isRunning) {
+          stopCamera();
+        } else {
+          startCamera();
+        }
+      });
+
+      flipBtn.addEventListener("click", () => {
+        facingMode = facingMode === "user" ? "environment" : "user";
+        startCamera();
+      });
+
+      // Initialize when page is loaded
+      window.addEventListener("DOMContentLoaded", initModel);
     </script>
-</body>
+  </body>
 </html>

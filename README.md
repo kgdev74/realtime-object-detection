@@ -9,11 +9,13 @@ Detects 80 common object classes (person, cell phone, laptop, bottle, cup, chair
 ## ⚡ Why This Architecture is Vercel-Ready
 
 Traditional OpenCV (`cv2.VideoCapture(0)`) and PyTorch setups cannot deploy to Vercel because:
+
 1. **Cloud Serverless containers have no physical webcam attached.**
 2. **PyTorch + OpenCV exceeds 1.5 GB**, vastly exceeding Vercel's 250 MB serverless function limit.
 3. **Infinite streaming loops time out** on serverless infrastructure.
 
 **Our Vercel Solution:**
+
 - **Browser-Powered Vision**: Accesses the user's real camera securely via `navigator.mediaDevices.getUserMedia()` and executes computer vision models utilizing WebGL GPU hardware acceleration.
 - **Lightweight Serverless Python Backend**: Standard Vercel Serverless Function structure (`api/index.py` + `vercel.json`), deploying in seconds with minimal package overhead.
 
@@ -24,6 +26,7 @@ Traditional OpenCV (`cv2.VideoCapture(0)`) and PyTorch setups cannot deploy to V
 ### Method 1: Deploy via Vercel Dashboard (Easiest)
 
 1. **Push your code to GitHub**:
+
    ```bash
    git add .
    git commit -m "Update for Vercel deployment"
@@ -109,6 +112,7 @@ obj_detector/
 ## 🏷️ Detected Object Categories (80 Classes)
 
 The model recognizes 80 common categories from the Microsoft COCO dataset:
+
 - **People & Accessories**: `person`, `backpack`, `umbrella`, `handbag`, `tie`, `suitcase`
 - **Electronics**: `cell phone`, `laptop`, `mouse`, `remote`, `keyboard`, `tv`, `microwave`, `oven`, `toaster`, `clock`
 - **Vehicles**: `car`, `motorcycle`, `airplane`, `bus`, `train`, `truck`, `boat`, `bicycle`
