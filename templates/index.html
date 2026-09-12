@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Object Detection | YOLOv8 + Flask</title>
+    <style>
+      :root {
+        --bg-color: #0d1117;
+        --card-bg: #161b22;
+        --border-color: #30363d;
+        --accent-green: #238636;
+        --accent-glow: rgba(35, 134, 54, 0.4);
+        --text-main: #f0f6fc;
+        --text-secondary: #8b949e;
+        --badge-bg: rgba(56, 139, 253, 0.15);
+        --badge-text: #58a6ff;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 960px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      /* Header section */
+      header {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .badges {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+
+      .badge {
+        background-color: var(--badge-bg);
+        color: var(--badge-text);
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        border: 1px solid rgba(88, 166, 255, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .badge-live {
+        background-color: rgba(35, 134, 54, 0.15);
+        color: #3fb950;
+        border-color: rgba(63, 185, 80, 0.3);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #3fb950;
+        border-radius: 50%;
+        box-shadow: 0 0 0 rgba(63, 185, 80, 0.5);
+        animation: pulse 1.8s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 8px rgba(63, 185, 80, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(63, 185, 80, 0);
+        }
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-main);
+        letter-spacing: -0.5px;
+      }
+
+      p.subtitle {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        max-width: 600px;
+        line-height: 1.4;
+      }
+
+      /* Main Dashboard Card */
+      .dashboard-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Card Header / Toolbar */
+      .card-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: rgba(22, 27, 34, 0.6);
+      }
+
+      .feed-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      .feed-status {
+        color: #3fb950;
+        font-size: 0.85rem;
+      }
+
+      /* Video Container */
+      .video-container {
+        position: relative;
+        width: 100%;
+        background-color: #010409;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 480px;
+      }
+
+      .video-container img {
+        width: 100%;
+        height: auto;
+        max-height: 600px;
+        object-fit: contain;
+        display: block;
+      }
+
+      /* Card Footer / Stats & Guide */
+      .card-footer {
+        padding: 20px;
+        background-color: rgba(13, 17, 23, 0.5);
+        border-top: 1px solid var(--border-color);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+      }
+
+      .info-box {
+        background-color: rgba(22, 27, 34, 0.8);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 14px;
+      }
+
+      .info-box h3 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .info-box ul {
+        list-style: none;
+        font-size: 0.85rem;
+        color: var(--text-main);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .info-box ul li {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        line-height: 1.4;
+      }
+
+      .info-box ul li::before {
+        content: "•";
+        color: #58a6ff;
+        font-weight: bold;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .stat-item {
+        background: rgba(33, 38, 45, 0.6);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+
+      .stat-label {
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+      }
+
+      .stat-val {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #58a6ff;
+        margin-top: 2px;
+      }
+
+      /* Footer */
+      footer {
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header>
+        <div class="badges">
+          <span class="badge">Ultralytics YOLOv8</span>
+          <span class="badge badge-live">
+            <span class="pulse-dot"></span>
+            Live Detection Running
+          </span>
+          <span class="badge">MJPEG Stream</span>
+        </div>
+        <h1>Real-Time Object Detection</h1>
+        <p class="subtitle">
+          Frames captured via OpenCV, processed with YOLOv8 Nano for real-time
+          object classification & localization, and streamed using Flask.
+        </p>
+      </header>
+
+      <!-- Main Dashboard Card -->
+      <main class="dashboard-card">
+        <!-- Card Header -->
+        <div class="card-header">
+          <div class="feed-info">
+            <span>📹 Webcam Stream</span>
+          </div>
+          <div class="feed-status">
+            <span>● Active Stream (/video_feed)</span>
+          </div>
+        </div>
+
+        <!-- Video Display -->
+        <div class="video-container">
+          <!-- Flask streams frames via multipart/x-mixed-replace directly into this img tag -->
+          <img
+            id="videoStream"
+            src="{{ url_for('video_feed') }}"
+            alt="Real-time YOLOv8 Object Detection Stream"
+          />
+        </div>
+
+        <!-- Footer Details / Instructions -->
+        <div class="card-footer">
+          <!-- System Specs -->
+          <div class="info-box">
+            <h3>⚙️ System Configuration</h3>
+            <div class="stat-grid">
+              <div class="stat-item">
+                <div class="stat-label">Model</div>
+                <div class="stat-val">yolov8n.pt</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">Inference Engine</div>
+                <div class="stat-val">PyTorch / CPU</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">Protocol</div>
+                <div class="stat-val">MJPEG HTTP</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">Camera Index</div>
+                <div class="stat-val">cv2.VideoCapture(0)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instructions -->
+          <div class="info-box">
+            <h3>💡 Quick Guide</h3>
+            <ul>
+              <li>
+                Hold everyday objects (cell phone, bottle, cup, laptop) in front
+                of the camera.
+              </li>
+              <li>
+                YOLOv8 automatically draws colored bounding boxes, labels, and
+                confidence %.
+              </li>
+              <li>
+                If the camera doesn't start, verify camera permissions in
+                Windows settings.
+              </li>
+              <li>
+                Press <code>Ctrl + C</code> in the terminal to cleanly terminate
+                the server and release the camera.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </main>
+
+      <!-- Page Footer -->
+      <footer>Built with Python 3, Flask, OpenCV & Ultralytics YOLOv8</footer>
+    </div>
+  </body>
+</html>
