@@ -21,6 +21,7 @@ How It Works:
    are safely released with cap.release().
 """
 
+import os
 import time
 import atexit
 import cv2
@@ -164,4 +165,6 @@ if __name__ == "__main__":
     print("[INFO] Starting Flask server on http://127.0.0.1:5000")
     print("[INFO] Press Ctrl+C to terminate.")
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
 
