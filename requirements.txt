@@ -1,4 +1,1 @@
-flask
-opencv-python
-ultralytics
-
+flask>=3.0.0

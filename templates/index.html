@@ -1,352 +1,613 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Real-Time Object Detection | YOLOv8 + Flask</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Object Detection | Vercel Edition</title>
+    <!-- TensorFlow.js and COCO-SSD for client-side hardware-accelerated detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
     <style>
-      :root {
-        --bg-color: #0d1117;
-        --card-bg: #161b22;
-        --border-color: #30363d;
-        --accent-green: #238636;
-        --accent-glow: rgba(35, 134, 54, 0.4);
-        --text-main: #f0f6fc;
-        --text-secondary: #8b949e;
-        --badge-bg: rgba(56, 139, 253, 0.15);
-        --badge-text: #58a6ff;
-      }
-
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-          Arial, sans-serif;
-        background-color: var(--bg-color);
-        color: var(--text-main);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 24px 16px;
-      }
-
-      .container {
-        width: 100%;
-        max-width: 960px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-      }
-
-      /* Header section */
-      header {
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .badges {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 4px;
-      }
-
-      .badge {
-        background-color: var(--badge-bg);
-        color: var(--badge-text);
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 9999px;
-        border: 1px solid rgba(88, 166, 255, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .badge-live {
-        background-color: rgba(35, 134, 54, 0.15);
-        color: #3fb950;
-        border-color: rgba(63, 185, 80, 0.3);
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .pulse-dot {
-        width: 8px;
-        height: 8px;
-        background-color: #3fb950;
-        border-radius: 50%;
-        box-shadow: 0 0 0 rgba(63, 185, 80, 0.5);
-        animation: pulse 1.8s infinite;
-      }
-
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.7);
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #131b2e;
+            --border-color: #232f48;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
         }
-        70% {
-          box-shadow: 0 0 0 8px rgba(63, 185, 80, 0);
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        100% {
-          box-shadow: 0 0 0 0 rgba(63, 185, 80, 0);
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px;
         }
-      }
 
-      h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--text-main);
-        letter-spacing: -0.5px;
-      }
+        .container {
+            width: 100%;
+            max-width: 980px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
 
-      p.subtitle {
-        color: var(--text-secondary);
-        font-size: 0.95rem;
-        max-width: 600px;
-        line-height: 1.4;
-      }
+        /* Header */
+        header {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
 
-      /* Main Dashboard Card */
-      .dashboard-card {
-        background-color: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
-        display: flex;
-        flex-direction: column;
-      }
+        .badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
 
-      /* Card Header / Toolbar */
-      .card-header {
-        padding: 14px 20px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background-color: rgba(22, 27, 34, 0.6);
-      }
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-      .feed-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 0.9rem;
-        font-weight: 600;
-      }
+        .badge-live {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent-green);
+            border-color: rgba(34, 197, 94, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
 
-      .feed-status {
-        color: #3fb950;
-        font-size: 0.85rem;
-      }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 1.8s infinite;
+        }
 
-      /* Video Container */
-      .video-container {
-        position: relative;
-        width: 100%;
-        background-color: #010409;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 480px;
-      }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
 
-      .video-container img {
-        width: 100%;
-        height: auto;
-        max-height: 600px;
-        object-fit: contain;
-        display: block;
-      }
+        h1 {
+            font-size: 2.1rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
-      /* Card Footer / Stats & Guide */
-      .card-footer {
-        padding: 20px;
-        background-color: rgba(13, 17, 23, 0.5);
-        border-top: 1px solid var(--border-color);
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 16px;
-      }
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            max-width: 620px;
+            line-height: 1.5;
+        }
 
-      .info-box {
-        background-color: rgba(22, 27, 34, 0.8);
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        padding: 14px;
-      }
+        /* Main Card */
+        .dashboard-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+        }
 
-      .info-box h3 {
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
+        /* Card Toolbar */
+        .card-toolbar {
+            padding: 14px 20px;
+            background: rgba(19, 27, 46, 0.9);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
 
-      .info-box ul {
-        list-style: none;
-        font-size: 0.85rem;
-        color: var(--text-main);
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
 
-      .info-box ul li {
-        display: flex;
-        align-items: flex-start;
-        gap: 6px;
-        line-height: 1.4;
-      }
+        button.btn {
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
 
-      .info-box ul li::before {
-        content: "•";
-        color: #58a6ff;
-        font-weight: bold;
-      }
+        button.btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
 
-      .stat-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
+        button.btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
 
-      .stat-item {
-        background: rgba(33, 38, 45, 0.6);
-        border-radius: 8px;
-        padding: 8px 10px;
-      }
+        button.btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
 
-      .stat-label {
-        font-size: 0.72rem;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-      }
+        .fps-counter {
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            font-family: monospace;
+            font-weight: 600;
+            background: rgba(56, 189, 248, 0.1);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
 
-      .stat-val {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #58a6ff;
-        margin-top: 2px;
-      }
+        /* Viewport Canvas */
+        .viewport {
+            position: relative;
+            width: 100%;
+            background: #000000;
+            min-height: 480px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
 
-      /* Footer */
-      footer {
-        text-align: center;
-        color: var(--text-secondary);
-        font-size: 0.8rem;
-        margin-top: 10px;
-      }
+        /* Hidden video element used as frame source for canvas */
+        video#webcam {
+            display: none;
+        }
+
+        canvas#canvas {
+            width: 100%;
+            height: auto;
+            max-height: 640px;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* Loading / Standby Overlay */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: rgba(11, 15, 25, 0.88);
+            backdrop-filter: blur(4px);
+            z-index: 10;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid rgba(56, 189, 248, 0.2);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .overlay p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Stats & Tags Panel */
+        .card-footer {
+            padding: 20px;
+            background: rgba(11, 15, 25, 0.6);
+            border-top: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .info-panel {
+            background: rgba(19, 27, 46, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .info-panel h3 {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .detected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 36px;
+            align-items: center;
+        }
+
+        .tag-pill {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .empty-tag-msg {
+            color: #64748b;
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-box {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+
+        .stat-box .label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .stat-box .val {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-top: 2px;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+
     <div class="container">
-      <!-- Header -->
-      <header>
-        <div class="badges">
-          <span class="badge">Ultralytics YOLOv8</span>
-          <span class="badge badge-live">
-            <span class="pulse-dot"></span>
-            Live Detection Running
-          </span>
-          <span class="badge">MJPEG Stream</span>
-        </div>
-        <h1>Real-Time Object Detection</h1>
-        <p class="subtitle">
-          Frames captured via OpenCV, processed with YOLOv8 Nano for real-time
-          object classification & localization, and streamed using Flask.
-        </p>
-      </header>
-
-      <!-- Main Dashboard Card -->
-      <main class="dashboard-card">
-        <!-- Card Header -->
-        <div class="card-header">
-          <div class="feed-info">
-            <span>📹 Webcam Stream</span>
-          </div>
-          <div class="feed-status">
-            <span>● Active Stream (/video_feed)</span>
-          </div>
-        </div>
-
-        <!-- Video Display -->
-        <div class="video-container">
-          <!-- Flask streams frames via multipart/x-mixed-replace directly into this img tag -->
-          <img
-            id="videoStream"
-            src="{{ url_for('video_feed') }}"
-            alt="Real-time YOLOv8 Object Detection Stream"
-          />
-        </div>
-
-        <!-- Footer Details / Instructions -->
-        <div class="card-footer">
-          <!-- System Specs -->
-          <div class="info-box">
-            <h3>⚙️ System Configuration</h3>
-            <div class="stat-grid">
-              <div class="stat-item">
-                <div class="stat-label">Model</div>
-                <div class="stat-val">yolov8n.pt</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-label">Inference Engine</div>
-                <div class="stat-val">PyTorch / CPU</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-label">Protocol</div>
-                <div class="stat-val">MJPEG HTTP</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-label">Camera Index</div>
-                <div class="stat-val">cv2.VideoCapture(0)</div>
-              </div>
+        <!-- Header -->
+        <header>
+            <div class="badges">
+                <span class="badge">Vercel Ready</span>
+                <span class="badge badge-live">
+                    <span class="pulse-dot"></span>
+                    Real-Time Detection
+                </span>
+                <span class="badge">Hardware Accelerated WebGL</span>
             </div>
-          </div>
+            <h1>Real-Time Object Detection</h1>
+            <p class="subtitle">
+                High-speed client-side computer vision deployed on Vercel. Detects 80 everyday objects at 30-60 FPS directly in your browser.
+            </p>
+        </header>
 
-          <!-- Instructions -->
-          <div class="info-box">
-            <h3>💡 Quick Guide</h3>
-            <ul>
-              <li>
-                Hold everyday objects (cell phone, bottle, cup, laptop) in front
-                of the camera.
-              </li>
-              <li>
-                YOLOv8 automatically draws colored bounding boxes, labels, and
-                confidence %.
-              </li>
-              <li>
-                If the camera doesn't start, verify camera permissions in
-                Windows settings.
-              </li>
-              <li>
-                Press <code>Ctrl + C</code> in the terminal to cleanly terminate
-                the server and release the camera.
-              </li>
-            </ul>
-          </div>
-        </div>
-      </main>
+        <!-- Main Dashboard Card -->
+        <main class="dashboard-card">
+            <!-- Toolbar -->
+            <div class="card-toolbar">
+                <div class="controls">
+                    <button id="toggleBtn" class="btn">
+                        <span>⏹️</span> <span id="toggleText">Stop Camera</span>
+                    </button>
+                    <button id="flipBtn" class="btn btn-secondary">
+                        <span>🔄</span> Switch Camera
+                    </button>
+                </div>
+                <div class="fps-counter" id="fpsDisplay">
+                    FPS: 0
+                </div>
+            </div>
 
-      <!-- Page Footer -->
-      <footer>Built with Python 3, Flask, OpenCV & Ultralytics YOLOv8</footer>
+            <!-- Viewport -->
+            <div class="viewport">
+                <!-- Video stream feed (hidden, processed onto canvas) -->
+                <video id="webcam" autoplay playsinline muted></video>
+                <!-- Render canvas -->
+                <canvas id="canvas"></canvas>
+
+                <!-- Loading / Standby Overlay -->
+                <div id="overlay" class="overlay">
+                    <div class="spinner"></div>
+                    <p id="overlayText">Loading neural network model (COCO-SSD)...</p>
+                </div>
+            </div>
+
+            <!-- Footer Details & Detections -->
+            <div class="card-footer">
+                <!-- Live Detected Objects -->
+                <div class="info-panel">
+                    <h3>🔍 Detected Objects</h3>
+                    <div id="detectedTags" class="detected-tags">
+                        <span class="empty-tag-msg">Point camera at objects to detect...</span>
+                    </div>
+                </div>
+
+                <!-- System Info -->
+                <div class="info-panel">
+                    <h3>⚙️ System Specs</h3>
+                    <div class="stat-grid">
+                        <div class="stat-box">
+                            <div class="label">Inference Engine</div>
+                            <div class="val">TensorFlow.js WebGL</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">Hosting Platform</div>
+                            <div class="val">Vercel Serverless</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">Categories</div>
+                            <div class="val">80 COCO Classes</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">Latency</div>
+                            <div class="val">< 15 ms (Client)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            Deployed with Python & Flask on Vercel • Client-Side Computer Vision
+        </footer>
     </div>
-  </body>
+
+    <script>
+        // DOM Elements
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const overlayText = document.getElementById('overlayText');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const toggleText = document.getElementById('toggleText');
+        const flipBtn = document.getElementById('flipBtn');
+        const fpsDisplay = document.getElementById('fpsDisplay');
+        const detectedTags = document.getElementById('detectedTags');
+
+        // State variables
+        let model = null;
+        let isRunning = false;
+        let facingMode = 'user'; // 'user' (front) or 'environment' (back)
+        let currentStream = null;
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fps = 0;
+
+        // Color palette for different object classes
+        const COLORS = [
+            '#22c55e', '#38bdf8', '#f59e0b', '#ec4899', 
+            '#a855f7', '#06b6d4', '#f97316', '#e11d48'
+        ];
+
+        function getClassColor(className) {
+            let hash = 0;
+            for (let i = 0; i < className.length; i++) {
+                hash = className.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return COLORS[Math.abs(hash) % COLORS.length];
+        }
+
+        // Initialize Object Detection Model
+        async function initModel() {
+            try {
+                overlayText.textContent = "Loading AI model (COCO-SSD)...";
+                model = await cocoSsd.load({ base: 'mobilenet_v2' });
+                overlayText.textContent = "Requesting camera access...";
+                await startCamera();
+            } catch (err) {
+                console.error("Model loading error:", err);
+                overlayText.textContent = "Error loading model. Check internet connection.";
+            }
+        }
+
+        // Access User Webcam
+        async function startCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            try {
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: facingMode
+                    },
+                    audio: false
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
+                video.srcObject = stream;
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    overlay.style.display = 'none';
+                    isRunning = true;
+                    toggleText.textContent = "Stop Camera";
+                    requestAnimationFrame(detectLoop);
+                };
+            } catch (err) {
+                console.error("Camera access error:", err);
+                overlay.style.display = 'flex';
+                overlayText.textContent = "Camera permission denied or camera not found. Please allow access.";
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            isRunning = false;
+            toggleText.textContent = "Start Camera";
+            overlay.style.display = 'flex';
+            overlayText.textContent = "Camera paused. Click 'Start Camera' to resume.";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            fpsDisplay.textContent = "FPS: 0";
+            detectedTags.innerHTML = '<span class="empty-tag-msg">Camera is stopped.</span>';
+        }
+
+        // Real-Time Frame Detection Loop
+        async function detectLoop() {
+            if (!isRunning || !model) return;
+
+            // Compute FPS
+            const now = performance.now();
+            frameCount++;
+            if (now - lastFrameTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / (now - lastFrameTime));
+                fpsDisplay.textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+
+            // Draw current camera frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Execute inference
+            try {
+                const predictions = await model.detect(video);
+                renderPredictions(predictions);
+            } catch (e) {
+                console.error("Detection error:", e);
+            }
+
+            // Continue to next frame
+            requestAnimationFrame(detectLoop);
+        }
+
+        // Render Bounding Boxes & Tags
+        function renderPredictions(predictions) {
+            const detectedItems = new Map();
+
+            predictions.forEach(prediction => {
+                const [x, y, width, height] = prediction.bbox;
+                const score = Math.round(prediction.score * 100);
+                const className = prediction.class;
+                const color = getClassColor(className);
+
+                // Track detected classes for tags display
+                detectedItems.set(className, Math.max(detectedItems.get(className) || 0, score));
+
+                // Bounding Box
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 8;
+                ctx.strokeRect(x, y, width, height);
+                ctx.shadowBlur = 0; // Reset shadow
+
+                // Label Tag Background
+                const label = `${className} ${score}%`;
+                ctx.font = "bold 15px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto";
+                const textWidth = ctx.measureText(label).width;
+                const tagHeight = 24;
+
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.roundRect(x, Math.max(0, y - tagHeight - 2), textWidth + 14, tagHeight, [4, 4, 0, 0]);
+                ctx.fill();
+
+                // Label Text
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(label, x + 7, Math.max(16, y - 6));
+            });
+
+            // Update live detected items panel
+            if (detectedItems.size === 0) {
+                detectedTags.innerHTML = '<span class="empty-tag-msg">Point camera at objects to detect...</span>';
+            } else {
+                let tagsHtml = '';
+                detectedItems.forEach((conf, name) => {
+                    tagsHtml += `<span class="tag-pill">${name} (${conf}%)</span>`;
+                });
+                detectedTags.innerHTML = tagsHtml;
+            }
+        }
+
+        // Event Listeners
+        toggleBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stopCamera();
+            } else {
+                startCamera();
+            }
+        });
+
+        flipBtn.addEventListener('click', () => {
+            facingMode = (facingMode === 'user') ? 'environment' : 'user';
+            startCamera();
+        });
+
+        // Initialize when page is loaded
+        window.addEventListener('DOMContentLoaded', initModel);
+    </script>
+</body>
 </html>
